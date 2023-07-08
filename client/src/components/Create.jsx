@@ -11,11 +11,9 @@ const Create = () => {
   });
 
   useEffect(() => {
-   
     fetch('/profile')
       .then((response) => response.json())
       .then((data) => {
-        
         if (data.loggedIn) {
           setUser(data.existingUser);
           setPost({...post, 
@@ -23,8 +21,6 @@ const Create = () => {
             userName: data.existingUser.userName,
             displayName: data.existingUser.displayName,
           })
-
-          console.log(post)
         }
       })
       .catch((error) => {
@@ -59,7 +55,7 @@ const Create = () => {
         <label htmlFor="body">Content</label>
         <input name="body" onChange={(e) => {setPost({...post, body: e.target.value})}} value={post.body}></input>
         <br/>
-        <p>Posting as {user ? `@${user.displayName}` : 'Anonymous'}</p>
+        <p>Posting as {user ? `@${user.displayName} (${user.username})` : 'Anonymous'}</p>
         <input type="submit"/>
       </form>
     </div>

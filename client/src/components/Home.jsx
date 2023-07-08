@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom"
+import Post from "./Post";
 
 const Home = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [loggedIn, setLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
 
   useEffect(() => {
@@ -18,7 +18,6 @@ const Home = () => {
     fetch('/profile')
       .then((response) => response.json())
       .then((data) => {
-        setLoggedIn(data.loggedIn);
         setUser(data.existingUser);
       })
       .catch((error) => {
@@ -56,7 +55,10 @@ const Home = () => {
   return (
     <div className="App-header">
         <div>LUNCHBOX</div>
-        <p>{user ? `@${user.displayName}` : 'Anonymous'}</p>
+        <p> {user 
+          ? (<Link to={`/user/${user.username}`}>@{user.displayName} ({user.username})</Link>) 
+          : 'Anonymous'
+        }</p>
         <Link to="/create">Create a New Post</Link>
         <br/>
         <button onClick={handleLogin}>Login</button>
@@ -65,16 +67,9 @@ const Home = () => {
         { !loading && 
           <p>loading...</p>}
         { items && 
-          items.map((key, i) => {
-            return (
-              <div key={i}>
-                <p>{key.title}
-                  <br/>by {key.displayName ? `@${key.displayName}` : 'Anonymous'} 
-                  <br/>{key.body}
-                </p>
-              </div>
-            )
-          })
+          <Post
+            items={items}
+          />
         }
       </div>
         

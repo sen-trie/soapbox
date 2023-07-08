@@ -18,6 +18,7 @@ const ChooseName = () => {
   },[googleName])
 
   const handleUserTextChange = (userNameText) => {
+    userNameText.toLowerCase()
     if (userNameText.length < 20 && /^[A-Za-z0-9_.]+$/.test(userNameText)) {
         setUserName(userNameText);
     } else if (userNameText.length === 0) {
@@ -65,7 +66,7 @@ const ChooseName = () => {
     <form onSubmit={sumbitForm}>
       <p>Email: {email}</p>
       <label htmlFor='userName'>
-        Set Username (Case Sensitive)
+        Set Username (Case Insensitive)
         <br/>
         This will be your unique username, shown on your profile as '/user/{userName}'
         <br/>

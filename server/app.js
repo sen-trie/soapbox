@@ -88,15 +88,29 @@ app.get('/api/items', (req, res) => {
     });
 });
 
+app.get('/api/items/:id', (req, res) => {
+  const id = req.params;
+
+  Post.find( { userID: id.id } )
+    .then((posts) => {
+      res.json({ posts });
+    })
+    .catch((err) => {
+      console.error(err);
+      res.status(500).send('Internal Server Error');
+    });
+});
+
 app.get('/profile', (req, res) => {
   if (req.isAuthenticated()) {
-    const { displayName, email, id } = req.user;
+    const { displayName, email, username, id } = req.user;
+
     User.findOne({ id })
       .then((existingUser) => {
         if (existingUser) {
           res.json({
             loggedIn: true,
-            user: { displayName, email, id },
+            user: { displayName, username, id },
             existingUser: existingUser
           });
         } else {
@@ -110,6 +124,21 @@ app.get('/profile', (req, res) => {
     res.json({ loggedIn: false });
   }
 });
+
+app.get('/api/user/:username', (req, res) => {
+  const username = req.params;
+
+  User.findOne(username)
+    .then((user) => {
+      const { id, username, displayName, createdAt } = user; // Extract desired keys from the user object
+      const scrubbedUser = { id, username, displayName, createdAt }; // Create a new object with the extracted keys
+      res.json({ user: scrubbedUser });
+    })
+    .catch((err) => {
+      // console.error(err);
+      res.status(500).send('Internal Server Error');
+    });
+})
 
 app.use(bodyParser.json());
 
@@ -143,6 +172,7 @@ app.post('/api/createName', (req, res) => {
         newUser.save()
           .then((savedUser) => {
             console.log("User saved:", savedUser);
+            // BUG NOT LOGIN AFTERWARDS
             res.redirect('/');
           })
           .catch((error) => {
