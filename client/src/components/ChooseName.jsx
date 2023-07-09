@@ -47,6 +47,7 @@ const ChooseName = () => {
         email: email,
         username: userName, 
         displayName: displayName,
+        liked: [],
       })
     })
     .then((response) => {

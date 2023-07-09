@@ -17,6 +17,13 @@ const postSchema = new Schema({
   },
   userName: {
     type: String,
+  },
+  board: {
+    type: String,
+    required: true
+  },
+  likes: {
+    type: Number,
   }
 }, { timestamps: true })
 

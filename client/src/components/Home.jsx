@@ -1,14 +1,19 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom"
+import { Link, useLocation } from "react-router-dom"
 import Post from "./Post";
+import boards from 'boards.js';
 
-const Home = () => {
+const Home = (props) => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState(null);
 
+  const location = useLocation();
+  const pathParts = location.pathname.split('/').filter(part => part !== '');
+  const subDirectory = pathParts.length > 1 ? pathParts.pop() : null;
+
   useEffect(() => {
-    fetch('/api/items')
+    fetch(`/api/items${subDirectory ? `/board:${subDirectory}` : ''}`)
       .then(res => res.json())
       .then(data => {
         setItems(data);
@@ -18,12 +23,14 @@ const Home = () => {
     fetch('/profile')
       .then((response) => response.json())
       .then((data) => {
-        setUser(data.existingUser);
+        if (typeof(data) === 'object') {
+          setUser(data.existingUser);
+        }
       })
       .catch((error) => {
         console.error('Error fetching user data:', error);
       });
-  }, []);
+  }, [subDirectory]);
 
   // const authUser = async (data) => {
   //   await fetch('/api/authenticate', {
@@ -54,7 +61,7 @@ const Home = () => {
 
   return (
     <div className="App-header">
-        <div>LUNCHBOX</div>
+        <div>SOAPBOX</div>
         <p> {user 
           ? (<Link to={`/user/${user.username}`}>@{user.displayName} ({user.username})</Link>) 
           : 'Anonymous'
@@ -62,13 +69,22 @@ const Home = () => {
         <Link to="/create">Create a New Post</Link>
         <br/>
         <button onClick={handleLogin}>Login</button>
-        <br/>
         <button onClick={handleLogout}>Logout</button>
+        <br/>
+        <br/>
+        <div>
+          <Link to={`/`}>HOME </Link>
+          {boards.map((board, index) => (
+            <Link key={index} to={`/box/${board}`}>
+              | {`${board.toUpperCase()} `}
+            </Link>
+          ))}
+        </div>
         { !loading && 
           <p>loading...</p>}
         { items && 
           <Post
-            items={items}
+            items={items} user={user}
           />
         }
       </div>

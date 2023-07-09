@@ -79,6 +79,7 @@ app.get('/auth/google/callback', (req, res, next) => {
 
 app.get('/api/items', (req, res) => {
   Post.find()
+    .sort({ createdAt: -1 })
     .then((posts) => {
       res.send(posts);
     })
@@ -88,12 +89,24 @@ app.get('/api/items', (req, res) => {
     });
 });
 
-app.get('/api/items/:id', (req, res) => {
-  const id = req.params;
+app.get('/api/items/:param', (req, res) => {
+  const param = req.params.param;
+  const [key, value] = param.split(':');
+  let find;
 
-  Post.find( { userID: id.id } )
+  if (key === 'id') {
+    find = { userID: value }
+  } else if (key === 'board') {
+    find = { board: value }
+  } else {
+    res.status(400).send('Invalid parameter');
+    return;
+  }
+
+  Post.find( find )
+    .sort({ createdAt: -1 })
     .then((posts) => {
-      res.json({ posts });
+      res.send( posts );
     })
     .catch((err) => {
       console.error(err);
@@ -108,6 +121,8 @@ app.get('/profile', (req, res) => {
     User.findOne({ id })
       .then((existingUser) => {
         if (existingUser) {
+          // END USERS DO NOT NEED THEIR EMAIL RETURNED
+          existingUser.email = null;
           res.json({
             loggedIn: true,
             user: { displayName, username, id },
@@ -142,11 +157,56 @@ app.get('/api/user/:username', (req, res) => {
 
 app.use(bodyParser.json());
 
+app.put('/api/posts/:param', async (req, res) => {
+  
+  const param = req.params.param.split(':');
+  const postId = param[0];
+  const userId = param[1];
+
+  const action = req.body.action; // 'upvote' or 'downvote'
+
+  const postUpdate = action === 'upvote' ? { $inc: { likes: 1 } } : { $inc: { likes: -1 } };
+  const userUpdate = action === 'upvote' ? { $push: { liked: postId } } : { $pull: { liked: postId } };
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const updatedPost = await Post.findOneAndUpdate({ _id: postId }, postUpdate, { new: true }).session(session);
+    if (!updatedPost) {
+      console.log('Post not found');
+      await session.abortTransaction();
+      session.endSession();
+      res.sendStatus(404);
+    }
+
+    const userUpdateResult = await User.updateOne({ id: userId }, userUpdate).session(session);
+    if (userUpdateResult.modifiedCount === 0) {
+      console.log('User not found');
+      await session.abortTransaction();
+      session.endSession();
+      res.sendStatus(404);
+    }
+
+    if (userUpdateResult.modifiedCount > 0 && updatedPost) {
+      res.json({ post: updatedPost });
+      await session.commitTransaction();
+      session.endSession();
+    }
+  } catch (error) {
+    console.error('Error updating post and user:', error);
+    await session.abortTransaction();
+    session.endSession();
+    res.sendStatus(500);
+  }
+
+  
+})
+
 app.post('/api/submit', (req, res) => {
-  const { title, body, userID, userName, displayName } = req.body;
+  const { title, body, userID, userName, displayName, board, likes } = req.body;
 
-  const newPost = new Post({ title, body, userID, userName, displayName });
-
+  const newPost = new Post({ title, body, userID, userName, displayName, board, likes });
   newPost.save()
     .then((savedPost) => {
       console.log("Post saved:", savedPost);
@@ -159,9 +219,9 @@ app.post('/api/submit', (req, res) => {
 });
 
 app.post('/api/createName', (req, res) => {
-  const { id, email, username, displayName } = req.body;
+  const { id, email, username, displayName, liked } = req.body;
 
-  const newUser = new User({ id, email, username, displayName });
+  const newUser = new User({ id, email, username, displayName, liked });
 
   User.findOne({ id })
     .then((existingUser) => {

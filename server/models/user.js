@@ -18,6 +18,10 @@ const userSchema = new Schema({
     type: String,
     required: true
   },
+  liked: {
+    type: Array,
+    required: true
+  }
 }, { timestamps: true })
 
 const User = mongoose.model('User', userSchema);
