@@ -37,7 +37,7 @@ const Create = () => {
   const sumbitForm = async (event) => {
     event.preventDefault();
 
-    if (!boards.includes(post.board)) {
+    if (!Object.keys(boards).includes(post.board)) {
       setErrorMessage("Invalid board");
       return;
     } else if (!post.title) {
@@ -68,7 +68,7 @@ const Create = () => {
         <input name="body" onChange={(e) => {setPost({...post, body: e.target.value})}} value={post.body}/>
         <br/>
         <p>Posting on {post.board ? post.board : '_____'}</p>
-        {boards.map((board, index) => (
+        {Object.keys(boards).map((board, index) => (
           <p key={index} style={{ margin: '0' }}>
             <input type="radio" id={board} name="board" value={board} onChange={(e) => setPost({ ...post, board: e.target.value })} style={{ display: 'none' }}/>
             <label htmlFor={board}>{board}</label>

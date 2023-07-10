@@ -1,10 +1,21 @@
 const express = require('express');
 const path = require('path');
 const mongoose = require("mongoose");
-const Post = require('./models/posts');
 const bodyParser = require("body-parser");
 
+const Post = require('./models/posts');
 const User = require('./models/user');
+const Reply = require('./models/reply');
+const boards = require('../shared/boards');
+
+const Counter = mongoose.model('Counter', {
+  anime: Number,
+  fitness: Number,
+  gaming: Number,
+  nature: Number,
+  science: Number,
+  technology: Number,
+}, 'counter');
 
 const session = require('express-session');
 const passport = require('passport');
@@ -98,6 +109,8 @@ app.get('/api/items/:param', (req, res) => {
     find = { userID: value }
   } else if (key === 'board') {
     find = { board: value }
+  } else if (key === 'uid') {
+    find = { _id: value }
   } else {
     res.status(400).send('Invalid parameter');
     return;
@@ -106,13 +119,27 @@ app.get('/api/items/:param', (req, res) => {
   Post.find( find )
     .sort({ createdAt: -1 })
     .then((posts) => {
-      res.send( posts );
+      res.send(posts);
     })
     .catch((err) => {
       console.error(err);
       res.status(500).send('Internal Server Error');
     });
 });
+
+
+app.get(`/api/replies/:uid`, (req, res) => {
+  const param = req.params.uid;
+
+  Reply.find({ postId: param })
+    .then((replies) => {
+      res.send(replies);
+    })
+    .catch((err) => {
+      console.error(err);
+      res.status(500).send('Internal Server Error');
+    });
+})
 
 app.get('/profile', (req, res) => {
   if (req.isAuthenticated()) {
@@ -121,7 +148,7 @@ app.get('/profile', (req, res) => {
     User.findOne({ id })
       .then((existingUser) => {
         if (existingUser) {
-          // END USERS DO NOT NEED THEIR EMAIL RETURNED
+          // PREVENTS EMAIL FROM BEING SENT TO CLIENT
           existingUser.email = null;
           res.json({
             loggedIn: true,
@@ -145,77 +172,142 @@ app.get('/api/user/:username', (req, res) => {
 
   User.findOne(username)
     .then((user) => {
-      const { id, username, displayName, createdAt } = user; // Extract desired keys from the user object
-      const scrubbedUser = { id, username, displayName, createdAt }; // Create a new object with the extracted keys
+      const { id, username, displayName, createdAt } = user;
+      // ONLY GIVES CLIENT ID, USERNAME, DISPLAY NAME AND CREATION DATE
+      const scrubbedUser = { id, username, displayName, createdAt };
       res.json({ user: scrubbedUser });
     })
     .catch((err) => {
-      // console.error(err);
       res.status(500).send('Internal Server Error');
     });
-})
+});
+
 
 app.use(bodyParser.json());
 
 app.put('/api/posts/:param', async (req, res) => {
-  
   const param = req.params.param.split(':');
   const postId = param[0];
   const userId = param[1];
 
-  const action = req.body.action; // 'upvote' or 'downvote'
+  const action = req.body.action;
 
-  const postUpdate = action === 'upvote' ? { $inc: { likes: 1 } } : { $inc: { likes: -1 } };
-  const userUpdate = action === 'upvote' ? { $push: { liked: postId } } : { $pull: { liked: postId } };
+  if (action === 'upvote' || action === 'downvote') {
+    const postUpdate = action === 'upvote' ? { $inc: { likes: 1 } } : { $inc: { likes: -1 } };
+    const userUpdate = action === 'upvote' ? { $push: { liked: postId } } : { $pull: { liked: postId } };
 
-  const session = await mongoose.startSession();
-  session.startTransaction();
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      const updatedPost = await Post.findOneAndUpdate({ _id: postId }, postUpdate, { new: true }).session(session);
+      if (!updatedPost) {
+        console.log('Post not found');
+        await session.abortTransaction();
+        session.endSession();
+        res.sendStatus(404);
+      }
+
+      const userUpdateResult = await User.updateOne({ id: userId }, userUpdate).session(session);
+      if (userUpdateResult.modifiedCount === 0) {
+        console.log('User not found');
+        await session.abortTransaction();
+        session.endSession();
+        res.sendStatus(404);
+      }
+
+      if (userUpdateResult.modifiedCount > 0 && updatedPost) {
+        console.log('Upvote/Downvote successful');
+        res.json({ post: updatedPost });
+        await session.commitTransaction();
+        session.endSession();
+      }
+    } catch (error) {
+      console.error('Error updating post and user:', error);
+      await session.abortTransaction();
+      session.endSession();
+      res.sendStatus(500);
+    }
+  } else if (action === 'comment') {
+    const board = req.body.board;
+    const { postId, text, user, replies } = req.body.data;
+
+    // Reply.find({ postId: param })
+    //   .then((replies) => {
+    //     res.send(replies);
+    //   })
+    //   .catch((err) => {
+    //     console.error(err);
+    //     res.status(500).send('Internal Server Error');
+    //   });
+
+    let replyArray = text.match(/->[A-Z]+:\d+\b/g);
+    if (replyArray) {
+      replyArray = replyArray.map((str) => str.replace(/->/g, ''));
+    }
+
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      const updatedCounter = await Counter.findByIdAndUpdate( '64ab99fd99eb639ccf2abbf5', { $inc: { [board]: 1 } });
+
+      if (updatedCounter) {
+        const replyId = `${boards[board]}:${updatedCounter.toObject()[board]}`;
+
+        if (replyArray) {
+          replyArray.forEach(async (value) => {
+            await Reply.updateOne({ replyId: value }, { $push: { replies: replyId } })
+          });
+        }
+
+        const newReply = new Reply({
+          postId, text, user, replies,
+          replyId: replyId
+        });
+
+        newReply.save()
+        .then((savedPost) => {
+          console.log("Post saved:", savedPost);
+          res.sendStatus(200);
+        })
+        .catch((error) => {
+          console.error("Error saving post:", error);
+          res.sendStatus(500);
+        });
+
+        
+      }
+    } catch (err) {
+      console.error('Error replying', err);
+      return res.status(500).json({ error: 'Error replying' });
+    }
+  }
+});
+
+app.post('/api/submit', async (req, res) => {
+  const { title, body, userID, userName, displayName, board, likes, replies } = req.body;
 
   try {
-    const updatedPost = await Post.findOneAndUpdate({ _id: postId }, postUpdate, { new: true }).session(session);
-    if (!updatedPost) {
-      console.log('Post not found');
-      await session.abortTransaction();
-      session.endSession();
-      res.sendStatus(404);
-    }
+    const updatedCounter = await Counter.findByIdAndUpdate( '64ab99fd99eb639ccf2abbf5', { $inc: { [board]: 1 } });
 
-    const userUpdateResult = await User.updateOne({ id: userId }, userUpdate).session(session);
-    if (userUpdateResult.modifiedCount === 0) {
-      console.log('User not found');
-      await session.abortTransaction();
-      session.endSession();
-      res.sendStatus(404);
+    if (updatedCounter) {
+      const postID = `${boards[board]}-P:${updatedCounter.toObject()[board]}`;
+      const newPost = new Post({ title, body, userID, postID, userName, displayName, board, likes, replies });
+      newPost.save()
+        .then((savedPost) => {
+          console.log("Post saved:", savedPost);
+          res.sendStatus(200);
+        })
+        .catch((error) => {
+          console.error("Error saving post:", error);
+          res.sendStatus(500);
+        });
     }
-
-    if (userUpdateResult.modifiedCount > 0 && updatedPost) {
-      res.json({ post: updatedPost });
-      await session.commitTransaction();
-      session.endSession();
-    }
-  } catch (error) {
-    console.error('Error updating post and user:', error);
-    await session.abortTransaction();
-    session.endSession();
+  } catch (err) {
+    console.error('Error creating post:', err);
     res.sendStatus(500);
   }
-
-  
-})
-
-app.post('/api/submit', (req, res) => {
-  const { title, body, userID, userName, displayName, board, likes } = req.body;
-
-  const newPost = new Post({ title, body, userID, userName, displayName, board, likes });
-  newPost.save()
-    .then((savedPost) => {
-      console.log("Post saved:", savedPost);
-      res.sendStatus(200);
-    })
-    .catch((error) => {
-      console.error("Error saving post:", error);
-      res.sendStatus(500);
-    });
 });
 
 app.post('/api/createName', (req, res) => {

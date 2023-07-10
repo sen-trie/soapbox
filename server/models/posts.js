@@ -9,6 +9,10 @@ const postSchema = new Schema({
   body: {
     type: String,
   },
+  postID:{
+    type: String,
+    required: true
+  },
   userID: {
     type: String,
   },
@@ -24,8 +28,8 @@ const postSchema = new Schema({
   },
   likes: {
     type: Number,
-  }
+  },
 }, { timestamps: true })
 
 const Post = mongoose.model('Post', postSchema);
-module.exports = Post
+module.exports = Post;

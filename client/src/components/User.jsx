@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import Post from "./Post";
+import Item from "./Item";
 
 const User = () => {
   const [currentUser, setCurrentUser] = useState(null);
@@ -8,7 +8,6 @@ const User = () => {
   const [posts, setPosts] = useState(null);
 
   const nav = useNavigate();
-
   const pathName = ((window.location.href).split("/")).pop();
 
   useEffect(() => {
@@ -34,7 +33,7 @@ const User = () => {
         }
       })
       .catch((error) => {
-        console.error('Error fetching user data:', error);
+        nav('/404', { replace: true })
       });
   }, [])
 
@@ -56,7 +55,7 @@ const User = () => {
       day: '2-digit'
     }).split('/').reverse().join('/');
 
-    return formattedDate
+    return formattedDate;
   }
   
   return (
@@ -69,7 +68,7 @@ const User = () => {
             <br/> Created on {calculateTime()}
           </p>
           <div>
-            { posts ? <Post items={posts} place='userpage' user={currentUser}/> : 'Loading Posts...'}
+            { posts ? <Item items={posts} place='userpage' user={currentUser}/> : 'Loading Posts...'}
           </div>
         </>
       }

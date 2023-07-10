@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom"
-import Post from "./Post";
+import Item from "./Item";
 import boards from 'boards.js';
 
 const Home = (props) => {
@@ -74,16 +74,16 @@ const Home = (props) => {
         <br/>
         <div>
           <Link to={`/`}>HOME </Link>
-          {boards.map((board, index) => (
-            <Link key={index} to={`/box/${board}`}>
-              | {`${board.toUpperCase()} `}
+          {Object.keys(boards).map((key) => (
+            <Link key={key} to={`/box/${key}`}>
+              | {`${key.toUpperCase()} `}
             </Link>
           ))}
         </div>
         { !loading && 
           <p>loading...</p>}
         { items && 
-          <Post
+          <Item
             items={items} user={user}
           />
         }

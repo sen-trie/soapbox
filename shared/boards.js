@@ -1,10 +1,10 @@
-const boards = [
-  'anime',
-  'fitness',
-  'gaming',
-  'nature',
-  'science',
-  'technology',
-]
+const boards = {
+  'anime':'AN',
+  'fitness':'FI',
+  'gaming':'GI',
+  'nature':'NA',
+  'science':'SC',
+  'technology':'TE'
+}
 
-module.exports = boards
+module.exports = boards;
