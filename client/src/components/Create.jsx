@@ -67,6 +67,9 @@ const Create = () => {
         <label htmlFor="body">Content </label>
         <input name="body" onChange={(e) => {setPost({...post, body: e.target.value})}} value={post.body}/>
         <br/>
+        <label htmlFor="media">Media Link (img/mp4) </label>
+        <input name="body" onChange={(e) => {setPost({...post, body: e.target.value})}} value={post.body}/>
+        <br/>
         <p>Posting on {post.board ? post.board : '_____'}</p>
         {Object.keys(boards).map((board, index) => (
           <p key={index} style={{ margin: '0' }}>

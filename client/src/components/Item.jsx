@@ -1,12 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import timePassed from "../functions/time";
 
 const Item = (props) => {
   const [process, setProcess] = useState(false);
+  const [loadingReply, setLoadingReply] = useState(false);
+  const [items, setItems] = useState(props.items);
 
   // ONLY TAKES ARRAYS AS PROPS
-  const items = props.items;
+  useEffect(() => {
+    fetchReplyCounts(items);
+  },[])
+
   const likePost = (post) => {
     if (process) {return}
     setProcess(true)
@@ -46,22 +51,34 @@ const Item = (props) => {
       });
   }
 
-  const renderBody = (body) => {
-    return (
-      <img key='body' style={{ width: '20rem', height: '25rem', objectFit:'cover' }} src={body} alt='post body'></img>
-    )
-  }
+  const fetchReplyCounts = async (items) => {
+    if (items.length === 0) {
+      setLoadingReply(true);
+      return;
+    }
 
-  const didUserLike = (postId) => {
-    if (!props.user) {return false}
-    return (props.user.liked.includes(postId))
-  }
+    const fetchPromises = items.map(async (item) => {
+      const postId = item._id;
+      return fetch(`/api/items/countReply:${postId}`)
+        .then((response) => response.json())
+        .then((data) => {
+          item.replies = data.number;
+        })
+        .catch((error) => {
+          console.error(`Error getting number of replies for post ${postId}`);
+        });
+    });
   
-  if (Object.keys(items).length === 0) {
-    return (
-      <p>Nothing is posted yet...</p>
-    )
-  } else {
+    Promise.all(fetchPromises)
+      .then(() => {
+        setLoadingReply(true);
+      })
+      .catch((error) => {
+        console.error('Error fetching reply counts:', error);
+      });
+  };
+
+  const renderItems = (items) => {
     return Object.keys(items).map((key, i) => {
       let post = items[key];
 
@@ -75,19 +92,46 @@ const Item = (props) => {
               }}>{post.likes}</p>
               { props.user && <button style={{height:'fit-content'}} onClick={() =>{likePost(post)}}> ^ </button>}
             </div>
-            <p>{props.type !== 'post' ? <Link to={`/post/${post.board}:${post._id}`}>{post.title}</Link> : post.title}
+            <p>{props.place !== 'post' ? <Link to={`/post/${post.board}:${post._id}`}>{post.title}</Link> : post.title}
               {post.postID ? ` [${post.postID}]` : ''}
-              <br/>by {post.displayName ? <Link to={`/user/${post.userName}`}>@{post.displayName}</Link> : 'Anonymous'} 
+              <br/>{'by '}
+                {post.displayName 
+                  ? ( props.place !== 'userpage' 
+                      ? <Link to={`/user/${post.userName}`}>@{post.displayName}</Link> : `@${post.displayName}`)
+                  : 'Anonymous'} 
                 {post.board ? `, on ${post.board}` : ', '}
                 {` ${timePassed(Date.parse(post.createdAt))}`}
-              {/* <br/>{post.replies.length}{post.replies.length === 1 ? ' reply' : ' replies'} */}
+              <br/>
+                {` ${post.replies} ${post.replies === 1 ? 'reply' : 'replies'}`}
             </p>
           </div>
-          {props.type === 'post' ? renderBody(post.body) : ''}
+          {props.place === 'post' ? renderBody(post.body) : ''}
         </div>
       );
     });
   }
+
+  const renderBody = (body) => {
+    return (
+      <img key='body' style={{ width: '20rem', height: '25rem', objectFit:'cover' }} src={body} alt='post body'></img>
+    )
+  }
+
+  const didUserLike = (postId) => {
+    if (!props.user) {return false}
+    return (props.user.liked.includes(postId))
+  }
+
+  // if (Object.keys(items).length === 0) {
+  //   return (
+  //     <p>Nothing is posted yet...</p>
+  //   )
+
+  return (
+    <div>
+      {loadingReply === true && renderItems(items)}
+    </div>
+  )
 }
 
-export default Item
+export default Item;

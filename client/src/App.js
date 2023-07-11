@@ -14,6 +14,7 @@ function App() {
         <Route path="/box/:id" element={<Home/>} />
         <Route path="/post/:id" element={<Post/>} />
         <Route path="/user/:id" element={<User/>} />
+        <Route path="/user/:id/:id" element={<User/>} />
         <Route exact path="/create" element={<Create/>} />
         <Route path="/choose-display-name" element={<ChooseName/>} />
         <Route path="*" element={<NotFound/>} />

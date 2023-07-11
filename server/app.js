@@ -96,7 +96,7 @@ app.get('/api/items', (req, res) => {
     })
     .catch((err) => {
       console.error(err);
-      res.status(500).send('Internal Server Error');
+      res.sendStatus(500)
     });
 });
 
@@ -111,33 +111,82 @@ app.get('/api/items/:param', (req, res) => {
     find = { board: value }
   } else if (key === 'uid') {
     find = { _id: value }
+  } else if (key === 'countReply') {
+    find = { _id: value }
   } else {
-    res.status(400).send('Invalid parameter');
+    res.sendStatus(400);
     return;
   }
 
-  Post.find( find )
-    .sort({ createdAt: -1 })
-    .then((posts) => {
-      res.send(posts);
-    })
-    .catch((err) => {
-      console.error(err);
-      res.status(500).send('Internal Server Error');
-    });
+  if (key === 'countReply') {
+    Reply.countDocuments({ postId: value })
+      .then((number) => {
+        res.json({ number })
+      })
+      .catch((err) => {
+        console.error(err);
+        res.sendStatus(500)
+      })
+  } else {
+    Post.find(find)
+      .sort({ createdAt: -1 })
+      .then((posts) => {
+        res.send(posts);
+      })
+      .catch((err) => {
+        const error = { message: "An internal serval error occurred" };
+        res.status(500).json(error);
+      });
+  }
 });
 
+app.get(`/api/replies/:param`, (req, res) => {
+  const param = req.params.param;
+  const [key, value] = param.split(':');
+  let find;
 
-app.get(`/api/replies/:uid`, (req, res) => {
-  const param = req.params.uid;
+  if (key === 'uid') {
+    find = { postId: value }
+  } else if (key === 'user') {
+    find = { 'user.id': value }
+  } else {
+    res.sendStatus(400)
+    return;
+  }
 
-  Reply.find({ postId: param })
+  Reply.find(find)
     .then((replies) => {
-      res.send(replies);
+      if (key === 'user') {
+        const postIDs = replies.map((reply) => reply.postId);
+
+        Post.find({ _id: { $in: postIDs } })
+          .then((posts) => {
+            const combinedData = [];
+
+            for (let i = 0; i < replies.length; i++) {
+              let findPostId = replies[i].postId
+              for (let j = 0; j < posts.length; j++) {
+                if (findPostId === posts[j]._id.toString()) {
+                  
+                  combinedData.push({post:posts[j], reply:replies[i]});
+                  break;
+                }
+              }
+            }
+
+            res.send({ combinedData });
+          })
+          .catch((error) => {
+            console.error('Error retrieving posts:', error);
+            res.sendStatus(500);
+          });
+      } else {
+        res.send(replies);
+      }
     })
     .catch((err) => {
       console.error(err);
-      res.status(500).send('Internal Server Error');
+      res.sendStatus(500)
     });
 })
 
@@ -178,7 +227,7 @@ app.get('/api/user/:username', (req, res) => {
       res.json({ user: scrubbedUser });
     })
     .catch((err) => {
-      res.status(500).send('Internal Server Error');
+      res.sendStatus(500)
     });
 });
 
@@ -231,15 +280,6 @@ app.put('/api/posts/:param', async (req, res) => {
   } else if (action === 'comment') {
     const board = req.body.board;
     const { postId, text, user, replies } = req.body.data;
-
-    // Reply.find({ postId: param })
-    //   .then((replies) => {
-    //     res.send(replies);
-    //   })
-    //   .catch((err) => {
-    //     console.error(err);
-    //     res.status(500).send('Internal Server Error');
-    //   });
 
     let replyArray = text.match(/->[A-Z]+:\d+\b/g);
     if (replyArray) {

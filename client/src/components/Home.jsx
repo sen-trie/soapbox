@@ -1,24 +1,29 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom"
+import { Link, useLocation, useNavigate } from "react-router-dom"
 import Item from "./Item";
 import boards from 'boards.js';
 
 const Home = (props) => {
   const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
+
+  const nav = useNavigate();
 
   const location = useLocation();
   const pathParts = location.pathname.split('/').filter(part => part !== '');
-  const subDirectory = pathParts.length > 1 ? pathParts.pop() : null;
+  let subDirectory = pathParts.length > 1 ? pathParts.pop() : null;
 
   useEffect(() => {
     fetch(`/api/items${subDirectory ? `/board:${subDirectory}` : ''}`)
       .then(res => res.json())
       .then(data => {
         setItems(data);
-        setLoading(true);
-    });
+        setLoading(false);
+      })
+      .catch((err) => {
+        nav('/404', { replace: true })
+      })
 
     fetch('/profile')
       .then((response) => response.json())
@@ -31,17 +36,6 @@ const Home = (props) => {
         console.error('Error fetching user data:', error);
       });
   }, [subDirectory]);
-
-  // const authUser = async (data) => {
-  //   await fetch('/api/authenticate', {
-  //     method: "POST",
-  //     headers: {
-  //       'Content-type': 'application/json'
-  //     },
-  //     body: JSON.stringify(data)
-  //   })
-  //   .then((response) => console.log(response.statusText))
-  // }
 
   const handleLogout = () => {
     fetch('/logout')
@@ -61,34 +55,36 @@ const Home = (props) => {
 
   return (
     <div className="App-header">
-        <div>SOAPBOX</div>
-        <p> {user 
-          ? (<Link to={`/user/${user.username}`}>@{user.displayName} ({user.username})</Link>) 
-          : 'Anonymous'
-        }</p>
-        <Link to="/create">Create a New Post</Link>
-        <br/>
-        <button onClick={handleLogin}>Login</button>
-        <button onClick={handleLogout}>Logout</button>
-        <br/>
-        <br/>
-        <div>
-          <Link to={`/`}>HOME </Link>
-          {Object.keys(boards).map((key) => (
-            <Link key={key} to={`/box/${key}`}>
-              | {`${key.toUpperCase()} `}
-            </Link>
-          ))}
-        </div>
-        { !loading && 
-          <p>loading...</p>}
-        { items && 
-          <Item
-            items={items} user={user}
-          />
-        }
+      <div>SOAPBOX</div>
+      <p> {user 
+        ? (<Link to={`/user/${user.username}`}>@{user.displayName} ({user.username})</Link>) 
+        : 'Anonymous'
+      }</p>
+      <Link to="/create">Create a New Post</Link>
+      <br/>
+      <button onClick={handleLogin}>Login</button>
+      <button onClick={handleLogout}>Logout</button>
+      <br/>
+      <br/>
+      <div>
+        <Link to={`/`} onClick={() => {setLoading(false)}}>HOME </Link>
+        {Object.keys(boards).map((key) => (
+          <Link key={key} to={`/box/${key}`} onClick={() => {setLoading(false)}}>
+            | {`${key.toUpperCase()} `}
+          </Link>
+        ))}
       </div>
-        
+      { loading === true && 
+        <p>loading...</p>}
+      { items.length !== 0 && user !== null &&
+        <Item
+          items={items} user={user} key={items}
+        />}
+      {
+        items.length === 0 && user !== null &&
+        <p>There's nothing posted yet...</p>
+      }
+    </div>
     )
 }
 

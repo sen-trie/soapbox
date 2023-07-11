@@ -1,12 +1,18 @@
 import { useEffect, useState } from "react";
 import Item from "./Item";
 import Comment from "./Comment";
+import { useNavigate } from "react-router-dom";
 
 const Post = () => {
   const [post, setPost] = useState(null);
   const [user, setUser] = useState(null);
   const [reply, setReply] = useState(null);
-  const [commentText, setCommentText] = useState('')
+  const [commentText, setCommentText] = useState({
+    mediaLink: '',
+    comment: '',
+  });
+
+  const nav = useNavigate();
 
   const pathName = ((window.location.href).split("/")).pop();
   const postId = pathName.split(':')[1];
@@ -14,16 +20,23 @@ const Post = () => {
 
   useEffect(() => {
     fetch(`/api/items/uid:${postId}`)
-      .then(res => res.json())
+      .then((res) => res.ok ? res.json() : Promise.reject(new Error(`Post ${postId} not found`)))
       .then(data => {
         setPost(data);
-    });
+      })
+      .catch((err) => {
+        console.error(err);
+        nav('/404', { replace: true });
+      });
 
-    fetch(`/api/replies/${postId}`)
-      .then(res => res.json())
+    fetch(`/api/replies/uid:${postId}`)
+      .then((res) => res.ok ? res.json() : Promise.reject(new Error(`Replies for ${postId} not found`)))
       .then(data => {
         setReply(data);
-    });
+      }).catch((error) => {
+        console.error("Error:", error);
+        nav('/404', { replace: true });
+      });
 
     fetch('/profile')
       .then((response) => response.json())
@@ -56,7 +69,6 @@ const Post = () => {
     })
       .then((response) => response.json())
       .then((data) => {
-        console.log(data)
       })
       .catch((error) => {
         console.error('Error upvoting post:', error);
@@ -66,10 +78,13 @@ const Post = () => {
   return (
     <div>
       { !post && <p>Loading...</p>}
-      { post && <Item items={post} user={user} type='post'></Item>}
+      { post && <Item items={post} user={user} place='post'></Item>}
       <form onSubmit={handleSumbit}>
         <p>Commenting as {user ? `@${user.displayName} (${user.username})` : 'Anonymous'}</p>
-        <textarea name="postContent" rows={4} cols={40} value={commentText} onChange={(e) => {setCommentText(e.target.value)}}/>
+        <label htmlFor="media">Media Link (img/mp4)  </label>
+        <input name="media" onChange={(e) => {setCommentText({...commentText, mediaLink: e.target.value})}} value={commentText.mediaLink}/>
+        <br/>
+        <textarea name="postContent" rows={4} cols={40} value={commentText.comment} onChange={(e) => {setCommentText({...commentText, comment: e.target.value})}}/>
         <br/><input type="submit"></input>
       </form>
       { reply && <Comment items={reply}></Comment>}

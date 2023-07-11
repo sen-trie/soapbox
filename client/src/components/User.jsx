@@ -1,16 +1,25 @@
 import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import Item from "./Item";
+import Comment from "./Comment";
 
 const User = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [viewedUser, setViewedUser] = useState(null);
   const [posts, setPosts] = useState(null);
+  const [replies, setReplies] = useState(null);
+
+  const location = useLocation();
+  const pathParts = location.pathname.split('/').filter(part => part !== '');
+  let subDirectory = pathParts.length > 1 ? pathParts.pop() : null;
 
   const nav = useNavigate();
-  const pathName = ((window.location.href).split("/")).pop();
+  let pathName = ((window.location.href).split("/")).pop();
 
   useEffect(() => {
+    setReplies(null);
+    setPosts(null);
+
     fetch('/profile')
       .then((response) => response.json())
       .then((data) => {
@@ -22,7 +31,7 @@ const User = () => {
         console.error('Error fetching user data:', error);
       });
 
-    fetch(`/api/user/${pathName}`)
+    fetch(`/api/user/${subDirectory.split(':')[0]}`)
       .then((response) => response.json())
       .then((data) => {
         if (data.user) {
@@ -35,10 +44,24 @@ const User = () => {
       .catch((error) => {
         nav('/404', { replace: true })
       });
-  }, [])
+  }, [subDirectory])
+
+  // useEffect(()=>{
+  //   // console.log(replies)
+  // },[replies])
 
   const getPosts = (id) => {
-    fetch(`/api/items/id:${id}`)
+    if (pathName.split(':')[1] === 'replies') {
+      fetch(`/api/replies/user:${id}`)
+      .then((response) => response.json())
+      .then((data) => {
+        setReplies(data.combinedData);
+      })
+      .catch((error) => {
+        console.error('Error fetching user data:', error);
+      });
+    } else {
+      fetch(`/api/items/id:${id}`)
       .then((response) => response.json())
       .then((data) => {
         setPosts(data);
@@ -46,6 +69,7 @@ const User = () => {
       .catch((error) => {
         console.error('Error fetching user data:', error);
       });
+    }
   }
 
   const calculateTime = () => {
@@ -60,15 +84,19 @@ const User = () => {
   
   return (
     <div>
-      <Link to={`/`}>Home</Link>
+      <Link to={`/`}>HOME</Link>
       { !viewedUser && <p>Loading...</p>}
       { viewedUser && <>
           <p>
             Viewing {viewedUser.username}/@{viewedUser.displayName}
             <br/> Created on {calculateTime()}
           </p>
+          <Link to={`/user/${viewedUser.username}`}>Posts | </Link>
+          <Link to={`/user/${viewedUser.username}:replies`}>Replies</Link>
           <div>
-            { posts ? <Item items={posts} place='userpage' user={currentUser}/> : 'Loading Posts...'}
+            {( posts === null && replies === null && 'Loading Posts...')}
+            {( posts !== null && currentUser !== null) && <Item items={posts} place='userpage' user={currentUser}/> }
+            {( replies !== null && currentUser !== null) && <Comment items={replies} place='userpage'></Comment>}
           </div>
         </>
       }
