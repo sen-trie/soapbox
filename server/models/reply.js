@@ -14,6 +14,9 @@ const replySchema = new Schema({
     type: String,
     required: true,
   },
+  media:{
+    type: String,
+  },
   user: {
     type: Object,
     default: {}

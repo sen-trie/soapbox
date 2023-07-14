@@ -8,7 +8,7 @@ const Create = () => {
     title:'',
     body:'',
     board:'',
-    likes: 0,
+    media:'',
     userID: null,
     displayName: null,
     userName: null,
@@ -68,7 +68,7 @@ const Create = () => {
         <input name="body" onChange={(e) => {setPost({...post, body: e.target.value})}} value={post.body}/>
         <br/>
         <label htmlFor="media">Media Link (img/mp4) </label>
-        <input name="body" onChange={(e) => {setPost({...post, body: e.target.value})}} value={post.body}/>
+        <input name="media" onChange={(e) => {setPost({...post, media: e.target.value})}} value={post.media}/>
         <br/>
         <p>Posting on {post.board ? post.board : '_____'}</p>
         {Object.keys(boards).map((board, index) => (

@@ -57,7 +57,7 @@ const Home = (props) => {
     <div className="App-header">
       <div>SOAPBOX</div>
       <p> {user 
-        ? (<Link to={`/user/${user.username}`}>@{user.displayName} ({user.username})</Link>) 
+        ? (<><Link to={`/user/${user.username}`}>@{user.displayName} ({user.username}) </Link>{user.admin ? '[ADMIN]':''}</>) 
         : 'Anonymous'
       }</p>
       <Link to="/create">Create a New Post</Link>

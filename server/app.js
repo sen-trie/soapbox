@@ -6,20 +6,12 @@ const bodyParser = require("body-parser");
 const Post = require('./models/posts');
 const User = require('./models/user');
 const Reply = require('./models/reply');
+const Counter = require('./models/counter');
 const boards = require('../shared/boards');
 
 const userController = require('./controller/userController');
 const postController = require('./controller/postController');
 const replyController = require('./controller/replyController');
-
-const Counter = mongoose.model('Counter', {
-  anime: Number,
-  fitness: Number,
-  gaming: Number,
-  nature: Number,
-  science: Number,
-  technology: Number,
-}, 'counter');
 
 const session = require('express-session');
 const passport = require('passport');
@@ -68,6 +60,8 @@ app.get('/auth/google/callback', userController.googleCallback);
 app.get('/api/items', postController.postAll);
 
 app.get('/api/items/:param', postController.postParam);
+
+app.delete('/api/items/:postId', postController.deleteById);
 
 app.get(`/api/replies/:param`, replyController.findReply)
 
@@ -122,7 +116,7 @@ app.put('/api/posts/:param', async (req, res) => {
     }
   } else if (action === 'comment') {
     const board = req.body.board;
-    const { postId, text, user, replies } = req.body.data;
+    const { postId, text, user, replies, media } = req.body.data;
 
     let replyArray = text.match(/->[A-Z]+:\d+\b/g);
     if (replyArray) {
@@ -145,7 +139,7 @@ app.put('/api/posts/:param', async (req, res) => {
         }
 
         const newReply = new Reply({
-          postId, text, user, replies,
+          postId, text, user, replies, media,
           replyId: replyId
         });
 

@@ -13,6 +13,9 @@ const postSchema = new Schema({
     type: String,
     required: true
   },
+  media: {
+    type: String,
+  },
   userID: {
     type: String,
   },
@@ -28,6 +31,7 @@ const postSchema = new Schema({
   },
   likes: {
     type: Number,
+    default: 0,
   },
 }, { timestamps: true })
 

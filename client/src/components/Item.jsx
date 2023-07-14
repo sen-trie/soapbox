@@ -59,14 +59,14 @@ const Item = (props) => {
 
     const fetchPromises = items.map(async (item) => {
       const postId = item._id;
-      return fetch(`/api/items/countReply:${postId}`)
-        .then((response) => response.json())
-        .then((data) => {
-          item.replies = data.number;
-        })
-        .catch((error) => {
-          console.error(`Error getting number of replies for post ${postId}`);
-        });
+        return fetch(`/api/items/countReply:${postId}`)
+          .then((response) => response.json())
+          .then((data) => {
+            item.replies = data.number;
+          })
+          .catch((error) => {
+            console.error(`Error getting number of replies for post ${postId}`);
+          });
     });
   
     Promise.all(fetchPromises)
@@ -78,12 +78,34 @@ const Item = (props) => {
       });
   };
 
+  const deletePost = (post) => {
+    fetch(`/api/items/${post._id}`, {
+      method: 'DELETE',
+    })
+      .then((response) => {
+        if (response.ok) {
+          console.log('Post deleted successfully');
+        } else {
+          console.log('Error deleting post');
+        }
+      })
+      .catch((error) => {
+        console.error('Error deleting post:', error);
+      });
+  }
+
+  const checkIfCreator = (post) => {
+    if (props.user) {
+      return (post.userID === props.user.id || props.user.admin)
+    }
+  }
+
   const renderItems = (items) => {
     return Object.keys(items).map((key, i) => {
       let post = items[key];
 
       return (
-        <div key={i}>
+        <div key={i} className="post___container">
           <div style={{display:'flex', alignItems:'center'}}>
             <div style={{ margin:'1em' }}>
               <p style={{ 
@@ -92,28 +114,35 @@ const Item = (props) => {
               }}>{post.likes}</p>
               { props.user && <button style={{height:'fit-content'}} onClick={() =>{likePost(post)}}> ^ </button>}
             </div>
-            <p>{props.place !== 'post' ? <Link to={`/post/${post.board}:${post._id}`}>{post.title}</Link> : post.title}
+            <p>{props.place !== 'post' ? <Link to={`/post/${post.board}?${post._id}`}>{post.title}</Link> : post.title}
               {post.postID ? ` [${post.postID}]` : ''}
               <br/>{'by '}
                 {post.displayName 
                   ? ( props.place !== 'userpage' 
-                      ? <Link to={`/user/${post.userName}`}>@{post.displayName}</Link> : `@${post.displayName}`)
+                      ? <Link to={`/user/${post.userName}`}>@{post.displayName}</Link> 
+                      : `@${post.displayName}`)
                   : 'Anonymous'} 
                 {post.board ? `, on ${post.board}` : ', '}
                 {` ${timePassed(Date.parse(post.createdAt))}`}
               <br/>
                 {` ${post.replies} ${post.replies === 1 ? 'reply' : 'replies'}`}
             </p>
+            {/* props.user &&  */}
+            {checkIfCreator(post) && <button style={{ marginLeft: '1em' }} onClick={() => deletePost(post)}>X</button>}
           </div>
-          {props.place === 'post' ? renderBody(post.body) : ''}
+          {props.place === 'post' ? renderBody(post.media, post.body) : ''}
         </div>
       );
     });
   }
 
-  const renderBody = (body) => {
+  const renderBody = (media, body) => {
     return (
-      <img key='body' style={{ width: '20rem', height: '25rem', objectFit:'cover' }} src={body} alt='post body'></img>
+      <div style={{ display:'flex', gap:'1em' }}>
+        <img key='body' style={{ width: '20rem', height: '25rem', objectFit:'cover' }} src={media} alt='post body'></img>
+        <p>{body}</p>
+      </div>
+      
     )
   }
 

@@ -21,6 +21,11 @@ const userSchema = new Schema({
   liked: {
     type: Array,
     required: true
+  },
+  admin: {
+    type: Boolean,
+    default: false,
+    required: true,
   }
 }, { timestamps: true })
 

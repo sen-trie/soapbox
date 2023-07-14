@@ -15,8 +15,14 @@ const Post = () => {
   const nav = useNavigate();
 
   const pathName = ((window.location.href).split("/")).pop();
-  const postId = pathName.split(':')[1];
-  const board = pathName.split(':')[0];
+  let postId = pathName.split('?')[1];
+  const board = pathName.split('?')[0];
+
+  let replyId;
+  if (postId && postId.includes('#')) {
+    replyId = postId.split('#')[1];
+    postId = postId.split('#')[0];
+  }
 
   useEffect(() => {
     fetch(`/api/items/uid:${postId}`)
@@ -33,6 +39,7 @@ const Post = () => {
       .then((res) => res.ok ? res.json() : Promise.reject(new Error(`Replies for ${postId} not found`)))
       .then(data => {
         setReply(data);
+        checkIfReply(data);
       }).catch((error) => {
         console.error("Error:", error);
         nav('/404', { replace: true });
@@ -50,12 +57,21 @@ const Post = () => {
       });
   }, [postId]);
 
+  const checkIfReply = (data) => {
+    for (let i = 0; i < data.length; i++) {
+      if (replyId === data[i].replyId) {
+        data[i].highlighted = true;
+      }
+    }
+  }
+
   const handleSumbit = (event) => {
     event.preventDefault();
 
     const commentData = {
       postId: postId,
-      text: commentText,
+      media: commentText.mediaLink,
+      text: commentText.comment,
       board: board,
       user: user ? user : 'Anonymous',
     }
@@ -87,7 +103,7 @@ const Post = () => {
         <textarea name="postContent" rows={4} cols={40} value={commentText.comment} onChange={(e) => {setCommentText({...commentText, comment: e.target.value})}}/>
         <br/><input type="submit"></input>
       </form>
-      { reply && <Comment items={reply}></Comment>}
+      { reply && <Comment items={reply} postLink={`${board}?${postId}`}></Comment>}
     </div>
   )
 }

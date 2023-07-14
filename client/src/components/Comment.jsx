@@ -1,5 +1,6 @@
-import { Link } from "react-router-dom"
-import timePassed from "../functions/time"
+import { Link } from "react-router-dom";
+import timePassed from "../functions/time";
+import { withRouter } from 'react-router-dom';
 
 const Comment = (props) => {
   // let postArray = text.match(/->[A-Z]+-P:\d+\b/g);
@@ -7,10 +8,14 @@ const Comment = (props) => {
   //   postArray = postArray.map((str) => str.replace(/->/g, ''));
   // }
 
+  const handleClick = (key) => {
+    props.history.push(key);
+  }
+
   const replyToComment = (reply) => {
     return (
       Object.keys(reply).map((key) => {
-        return <p key={key} style={{ margin: 0 }}>{`-${reply[key]} `}</p>
+        return <Link key={key} to={`/post/${props.postLink}#${reply[key]}`} onClick={() => handleClick(`/post/${props.postLink}#${props.replyId}`)}>{`-${reply[key]} `}</Link>
       })
     )
   }
@@ -30,14 +35,17 @@ const Comment = (props) => {
     }
 
     return items.map((key, index) => {
-      return (<div key={index}>
+      return (<div key={index} style={{ backgroundColor: key.highlighted ? 'pink' : 'white' }}>
         <br/>
         {key.user === "Anonymous" ? 'Anonymous ': <Link to={`/user/${key.user.username}`}>@{`${key.user.displayName} `}</Link>} 
         {timePassed(Date.parse(key.createdAt))}
         {key.replyId ? ` [${key.replyId}]` : ''}
-        {key.replies.length === 0 && <br/>}
+        {key.replies.length !== 0 && <br/>}
         <span style={{ color:'green' }}>{replyToComment(key.replies)}</span>
-        <p dangerouslySetInnerHTML={{ __html: repliedToComments(key.text) }} style={{ margin: 0 }}></p>
+        <div style={{ display:'flex', margin: '0.5em' }}>
+          {key.media && <img style={{ width: 'auto', height: '5rem', aspectRatio:1, objectFit:'cover' }} src={key.media} alt="comment"></img>}
+          <p dangerouslySetInnerHTML={{ __html: repliedToComments(key.text) }}></p>
+        </div>
       </div>)
     })
   }
@@ -50,7 +58,7 @@ const Comment = (props) => {
     return items.map((key, index) => {
       return (<div key={index}>
         <br/>
-        <Link to={`/post/${key.post.board}:${key.post._id}`}>{key.post.title}</Link> by {key.post.displayName ? key.post.displayName : 'Anonymous'} in {key.post.board}
+        <Link to={`/post/${key.post.board}?${key.post._id}`}>{key.post.title}</Link> by {key.post.displayName ? key.post.displayName : 'Anonymous'} in {key.post.board}
         <br/>
         {key.reply.user === "Anonymous" ? 'Anonymous ': `@${key.reply.user.displayName} `}
         {timePassed(Date.parse(key.reply.createdAt))}
