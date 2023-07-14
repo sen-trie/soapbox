@@ -8,6 +8,10 @@ const User = require('./models/user');
 const Reply = require('./models/reply');
 const boards = require('../shared/boards');
 
+const userController = require('./controller/userController');
+const postController = require('./controller/postController');
+const replyController = require('./controller/replyController');
+
 const Counter = mongoose.model('Counter', {
   anime: Number,
   fitness: Number,
@@ -88,149 +92,15 @@ app.get('/auth/google/callback', (req, res, next) => {
   })(req, res, next);
 });
 
-app.get('/api/items', (req, res) => {
-  Post.find()
-    .sort({ createdAt: -1 })
-    .then((posts) => {
-      res.send(posts);
-    })
-    .catch((err) => {
-      console.error(err);
-      res.sendStatus(500)
-    });
-});
+app.get('/api/items', postController.postAll);
 
-app.get('/api/items/:param', (req, res) => {
-  const param = req.params.param;
-  const [key, value] = param.split(':');
-  let find;
+app.get('/api/items/:param', postController.postParam);
 
-  if (key === 'id') {
-    find = { userID: value }
-  } else if (key === 'board') {
-    find = { board: value }
-  } else if (key === 'uid') {
-    find = { _id: value }
-  } else if (key === 'countReply') {
-    find = { _id: value }
-  } else {
-    res.sendStatus(400);
-    return;
-  }
+app.get(`/api/replies/:param`, replyController.findReply)
 
-  if (key === 'countReply') {
-    Reply.countDocuments({ postId: value })
-      .then((number) => {
-        res.json({ number })
-      })
-      .catch((err) => {
-        console.error(err);
-        res.sendStatus(500)
-      })
-  } else {
-    Post.find(find)
-      .sort({ createdAt: -1 })
-      .then((posts) => {
-        res.send(posts);
-      })
-      .catch((err) => {
-        const error = { message: "An internal serval error occurred" };
-        res.status(500).json(error);
-      });
-  }
-});
+app.get('/profile', userController.byId);
 
-app.get(`/api/replies/:param`, (req, res) => {
-  const param = req.params.param;
-  const [key, value] = param.split(':');
-  let find;
-
-  if (key === 'uid') {
-    find = { postId: value }
-  } else if (key === 'user') {
-    find = { 'user.id': value }
-  } else {
-    res.sendStatus(400)
-    return;
-  }
-
-  Reply.find(find)
-    .then((replies) => {
-      if (key === 'user') {
-        const postIDs = replies.map((reply) => reply.postId);
-
-        Post.find({ _id: { $in: postIDs } })
-          .then((posts) => {
-            const combinedData = [];
-
-            for (let i = 0; i < replies.length; i++) {
-              let findPostId = replies[i].postId
-              for (let j = 0; j < posts.length; j++) {
-                if (findPostId === posts[j]._id.toString()) {
-                  
-                  combinedData.push({post:posts[j], reply:replies[i]});
-                  break;
-                }
-              }
-            }
-
-            res.send({ combinedData });
-          })
-          .catch((error) => {
-            console.error('Error retrieving posts:', error);
-            res.sendStatus(500);
-          });
-      } else {
-        res.send(replies);
-      }
-    })
-    .catch((err) => {
-      console.error(err);
-      res.sendStatus(500)
-    });
-})
-
-app.get('/profile', (req, res) => {
-  if (req.isAuthenticated()) {
-    const { displayName, email, username, id } = req.user;
-
-    User.findOne({ id })
-      .then((existingUser) => {
-        if (existingUser) {
-          // PREVENTS EMAIL FROM BEING SENT TO CLIENT
-          existingUser.email = null;
-          res.json({
-            loggedIn: true,
-            user: { displayName, username, id },
-            existingUser: existingUser
-          });
-        } else {
-          res.redirect(`/choose-display-name?Id=${id}&email=${email}&googleName=${displayName}`);
-        }
-      })
-      .catch((error) => {
-        console.error('Error checking existing user:', error);
-      });
-  } else {
-    res.json({ loggedIn: false });
-  }
-});
-
-app.get('/api/user/:username', (req, res) => {
-  const username = req.params;
-
-  User.findOne(username)
-    .then((user) => {
-      const { id, username, displayName, createdAt } = user;
-      // ONLY GIVES CLIENT ID, USERNAME, DISPLAY NAME AND CREATION DATE
-      const scrubbedUser = { id, username, displayName, createdAt };
-      res.json({ user: scrubbedUser });
-    })
-    .catch((err) => {
-      res.sendStatus(500)
-    });
-});
-
+app.get('/api/user/:username', userController.byUsername);
 
 app.use(bodyParser.json());
 
@@ -325,79 +195,11 @@ app.put('/api/posts/:param', async (req, res) => {
   }
 });
 
-app.post('/api/submit', async (req, res) => {
-  const { title, body, userID, userName, displayName, board, likes, replies } = req.body;
+app.post('/api/submit', postController.submit);
 
-  try {
-    const updatedCounter = await Counter.findByIdAndUpdate( '64ab99fd99eb639ccf2abbf5', { $inc: { [board]: 1 } });
+app.post('/api/createName', userController.createName);
 
-    if (updatedCounter) {
-      const postID = `${boards[board]}-P:${updatedCounter.toObject()[board]}`;
-      const newPost = new Post({ title, body, userID, postID, userName, displayName, board, likes, replies });
-      newPost.save()
-        .then((savedPost) => {
-          console.log("Post saved:", savedPost);
-          res.sendStatus(200);
-        })
-        .catch((error) => {
-          console.error("Error saving post:", error);
-          res.sendStatus(500);
-        });
-    }
-  } catch (err) {
-    console.error('Error creating post:', err);
-    res.sendStatus(500);
-  }
-});
-
-app.post('/api/createName', (req, res) => {
-  const { id, email, username, displayName, liked } = req.body;
-
-  const newUser = new User({ id, email, username, displayName, liked });
-
-  User.findOne({ id })
-    .then((existingUser) => {
-      if (existingUser) {
-        console.log('User already exists:', existingUser);
-        return;
-      } else {
-        newUser.save()
-          .then((savedUser) => {
-            console.log("User saved:", savedUser);
-            // BUG NOT LOGIN AFTERWARDS
-            res.redirect('/');
-          })
-          .catch((error) => {
-            console.error("Error saving name:", error);
-            res.sendStatus(500);
-          });
-        }
-      })
-    .catch((error) => {
-      console.error('Error checking existing user:', error);
-    });
-  });
-
-app.post('/api/authenticate', (req, res) => {
-  if (req.isAuthenticated()) {
-    const { displayName, email, id } = req.user;
-
-    User.findOne({ id })
-      .then((existingUser) => {
-        if (existingUser) {
-          console.log('User already exists:', existingUser);
-          return;
-        } else {
-          res.redirect(`/choose-display-name?Id=${id}&email=${email}&googleName=${displayName}`);
-        }
-      })
-      .catch((error) => {
-        console.error('Error checking existing user:', error);
-      });
-  }
-  
-  res.sendStatus(200);
-});
+app.post('/api/authenticate', userController.authenticate);
 
 app.get('*', (req,res) =>{
   res.sendFile(path.join(__dirname, '../client/build/index.html'));
