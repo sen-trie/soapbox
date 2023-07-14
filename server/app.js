@@ -63,34 +63,7 @@ app.get('/logout', function(req, res, next) {
   });
 });
 
-app.get('/auth/google/callback', (req, res, next) => {
-  passport.authenticate('google', (err, user, info) => {
-    if (err) {
-      return res.redirect('/auth/google/failure');
-    } else if (!user) {
-      return res.redirect('/auth/google/failure');
-    }
-
-    User.findOne({ id: user.id })
-      .then((existingUser) => {
-        if (existingUser) {
-          req.login(existingUser, (err) => {
-            if (err) {
-              console.error('Error during login:', err);
-              return res.redirect('/auth/google/failure');
-            }
-            return res.redirect('/');
-          });
-        } else {
-          res.redirect(`/choose-display-name?Id=${user.id}&email=${user.email}&googleName=${user.displayName}`);
-        }
-      })
-      .catch((error) => {
-        console.error('Error checking existing user:', error);
-        return res.redirect('/auth/google/failure');
-      });
-  })(req, res, next);
-});
+app.get('/auth/google/callback', userController.googleCallback);
 
 app.get('/api/items', postController.postAll);
 

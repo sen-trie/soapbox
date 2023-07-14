@@ -18,7 +18,8 @@ const ChooseName = () => {
   },[googleName])
 
   const handleUserTextChange = (userNameText) => {
-    userNameText.toLowerCase()
+    userNameText.toLowerCase();
+    
     if (userNameText.length < 20 && /^[A-Za-z0-9_.]+$/.test(userNameText)) {
         setUserName(userNameText);
     } else if (userNameText.length === 0) {
