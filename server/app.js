@@ -63,13 +63,21 @@ app.get('/api/items/:param', postController.postParam);
 
 app.delete('/api/items/:postId', postController.deleteById);
 
-app.get(`/api/replies/:param`, replyController.findReply)
-
 app.get('/profile', userController.byId);
 
 app.get('/api/user/:username', userController.byUsername);
 
 app.use(bodyParser.json());
+
+app.get(`/api/replies/:param`, replyController.findReply);
+
+app.post('/api/submit', postController.submit);
+
+app.post('/api/createName', userController.createName);
+
+app.post('/api/authenticate', userController.authenticate);
+
+app.put(`/api/delReply/:param`, replyController.deleteReply);
 
 app.put('/api/posts/:param', async (req, res) => {
   const param = req.params.param.split(':');
@@ -81,6 +89,7 @@ app.put('/api/posts/:param', async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
+  let shouldAbort = false;
   if (action === 'upvote' || action === 'downvote') {
     const postUpdate = action === 'upvote' ? { $inc: { likes: 1 } } : { $inc: { likes: -1 } };
     const userUpdate = action === 'upvote' ? { $push: { liked: postId } } : { $pull: { liked: postId } };
@@ -89,30 +98,21 @@ app.put('/api/posts/:param', async (req, res) => {
       const updatedPost = await Post.findOneAndUpdate({ _id: postId }, postUpdate, { new: true }).session(session);
       if (!updatedPost) {
         console.log('Post not found');
-        await session.abortTransaction();
-        session.endSession();
-        res.sendStatus(404);
+        shouldAbort = true;
       }
 
       const userUpdateResult = await User.updateOne({ id: userId }, userUpdate).session(session);
       if (userUpdateResult.modifiedCount === 0) {
         console.log('User not found');
-        await session.abortTransaction();
-        session.endSession();
-        res.sendStatus(404);
+        shouldAbort = true;
       }
 
       if (userUpdateResult.modifiedCount > 0 && updatedPost) {
         console.log('Upvote/Downvote successful');
-        res.json({ post: updatedPost });
-        await session.commitTransaction();
-        session.endSession();
       }
     } catch (error) {
       console.error('Error updating post and user:', error);
-      await session.abortTransaction();
-      session.endSession();
-      res.sendStatus(500);
+      shouldAbort = true;
     }
   } else if (action === 'comment') {
     const board = req.body.board;
@@ -124,50 +124,45 @@ app.put('/api/posts/:param', async (req, res) => {
     }
 
     try {
-      const updatedCounter = await Counter.findByIdAndUpdate( '64ab99fd99eb639ccf2abbf5', { $inc: { [board]: 1 } });
+      const updatedCounter = await Counter.findByIdAndUpdate( '64ab99fd99eb639ccf2abbf5', { $inc: { [board]: 1 } }).session(session);
 
       if (updatedCounter) {
         const replyId = `${boards[board]}:${updatedCounter.toObject()[board]}`;
 
         if (replyArray) {
           replyArray.forEach(async (value) => {
-            await Reply.updateOne({ replyId: value }, { $push: { replies: replyId } })
+            await Reply.updateOne({ replyId: value }, { $push: { replies: replyId } }).session(session);
           });
         }
 
         const newReply = new Reply({
-          postId, postUid, text, user, replies, media,
-          replyId: replyId
+          postId, postUid, text, replies, media,
+          replyId: replyId,
+          user: { _id: user._id, username: user.username, displayName: user.displayName}
         });
 
         await newReply.save();
-        await Post.findByIdAndUpdate(postId, { $push: { replies: replyId } }, { new: true });
-
-        await session.commitTransaction();
-        session.endSession();
+        await Post.findByIdAndUpdate(postId, { $push: { replies: replyId } }, { new: true }).session(session);
 
         console.log("Post saved:");
-        res.sendStatus(200).json({ message: 'OK' });
       } else {
-        await session.abortTransaction();
-        session.endSession();
+        shouldAbort = true;
         console.error('Error replying', err);
-        return res.status(500).json({ error: 'Error replying' });
       }
     } catch (err) {
-      await session.abortTransaction();
-      session.endSession();
+      shouldAbort = true;
       console.error('Error replying', err);
-      return res.status(500).json({ error: 'Error replying' });
     }
   }
+
+  if (shouldAbort) {
+    await session.abortTransaction();
+    res.status(500).json({ error: 'Error replying' });
+  } else {
+    await session.commitTransaction();
+    res.status(200).json({ message: 'OK' });
+  }
 });
-
-app.post('/api/submit', postController.submit);
-
-app.post('/api/createName', userController.createName);
-
-app.post('/api/authenticate', userController.authenticate);
 
 app.get('*', (req,res) =>{
   res.sendFile(path.join(__dirname, '../client/build/index.html'));

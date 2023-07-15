@@ -7,11 +7,11 @@ const findReply =  (req, res) => {
   let find;
   
   if (key === 'uid') {
-    find = { postId: value }
+    find = { postId: value };
   } else if (key === 'user') {
-    find = { 'user.id': value }
+    find = { 'user.id': value };
   } else {
-    res.sendStatus(400)
+    res.sendStatus(400);
     return;
   }
   
@@ -50,7 +50,59 @@ const findReply =  (req, res) => {
     });
 }
 
+const deleteReply = (req, res) => {
+  const reply = req.body;
+
+
+  if (req.isAuthenticated()) {
+    if (reply.user === 'Anonymous') {
+      if (!req.user.admin) {
+        res.status(401).send('Unauthorized');
+        return;
+      }
+    } else if (reply.user._id !== req.user._id) {
+      res.status(401).send('Unauthorized');
+      return;
+    }
+
+    Reply.findByIdAndUpdate(reply._id, {}, { new: true })
+      .then(reply =>{
+        // const modifiedText = yourFunction(reply.text);
+        console.log(reply.text)
+
+        const regex = /(->[A-Z]+:\d+)/g
+        const matches = reply.text.match(regex);
+        let replacedText = reply.text.split(regex).map(part => {
+          if (matches && matches.includes(part)) {
+            return part;
+          } else {
+            return '';
+          }
+        }).join('');
+
+        if (reply.media) {reply.media = 'DELETED'}
+        reply.text = replacedText;
+        reply.deleted = true;
+        reply.user = 'DELETED'
+
+        reply.save()
+          .then((updatedReply) => {
+            console.log('Reply updated:', updatedReply);
+          })
+          .catch((err) => {
+            console.error('Error saving updated reply:', err);
+          })
+      })
+      .catch(err => {
+        console.error(err);
+        res.sendStatus(500)
+      })
+  } else {
+    res.status(401).send('Unauthorized');
+  }
+}
+
 
 module.exports = {
-  findReply
+  findReply, deleteReply
 }

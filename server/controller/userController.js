@@ -47,8 +47,9 @@ const byId =  (req, res) => {
     User.findOne({ id })
       .then((existingUser) => {
         if (existingUser) {
-          // PREVENTS EMAIL FROM BEING SENT TO CLIENT
+          // PREVENTS EMAIL & ADMIN STATUS FROM BEING SENT TO CLIENT
           existingUser.email = null;
+          existingUser.admin = null;
           res.json({
             loggedIn: true,
             user: { displayName, username, id },

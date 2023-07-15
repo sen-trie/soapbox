@@ -91,7 +91,7 @@ const Post = () => {
         <textarea name="postContent" rows={4} cols={40} value={commentText.comment} onChange={(e) => {setCommentText((commentText) => ({...commentText, comment: e.target.value}))}}/>
         <br/><input type="submit"></input>
       </form>
-      { reply && <Comment items={reply} postLink={`${board}?${postId}`} activeComment={activeComment}></Comment>}
+      { reply && <Comment items={reply} postLink={`${board}?${postId}`} activeComment={activeComment} user={user}></Comment>}
     </div>
   )
 }

@@ -53,22 +53,22 @@ const User = () => {
   const getPosts = (id) => {
     if (pathName.split(':')[1] === 'replies') {
       fetch(`/api/replies/user:${id}`)
-      .then((response) => response.json())
-      .then((data) => {
-        setReplies(data.combinedData);
-      })
-      .catch((error) => {
-        console.error('Error fetching user data:', error);
-      });
+        .then((response) => response.json())
+        .then((data) => {
+          setReplies(data.combinedData);
+        })
+        .catch((error) => {
+          console.error('Error fetching user data:', error);
+        });
     } else {
       fetch(`/api/items/id:${id}`)
-      .then((response) => response.json())
-      .then((data) => {
-        setPosts(data);
-      })
-      .catch((error) => {
-        console.error('Error fetching user data:', error);
-      });
+        .then((response) => response.json())
+        .then((data) => {
+          setPosts(data);
+        })
+        .catch((error) => {
+          console.error('Error fetching user data:', error);
+        });
     }
   }
 
@@ -96,7 +96,7 @@ const User = () => {
           <div>
             {( posts === null && replies === null && 'Loading Posts...')}
             {( posts !== null && currentUser !== null) && <Item items={posts} place='userpage' user={currentUser}/> }
-            {( replies !== null && currentUser !== null) && <Comment items={replies} place='userpage'></Comment>}
+            {( replies !== null && currentUser !== null) && <Comment items={replies} place='userpage' user={currentUser}></Comment>}
           </div>
         </>
       }

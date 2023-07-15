@@ -27,7 +27,13 @@ const replySchema = new Schema({
   },
   replies: {
     type: Array,
-    default: []
+    default: [],
+    required: true,
+  },
+  deleted: {
+    type: Boolean,
+    default: false,
+    required: true,
   }
 }, { timestamps: true })
 
