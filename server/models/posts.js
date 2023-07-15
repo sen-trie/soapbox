@@ -13,6 +13,11 @@ const postSchema = new Schema({
     type: String,
     required: true
   },
+  replies:{
+    type: Array,
+    default: [],
+    required: true
+  },
   media: {
     type: String,
   },

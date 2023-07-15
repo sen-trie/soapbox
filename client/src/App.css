@@ -10,3 +10,15 @@
 :root {
     --main-color: 'black';
 }
+
+a:-webkit-any-link {
+    color: black;
+}
+
+textarea, input[type='text'] {
+    border: 0.1rem solid black;
+}
+
+button, input[type='submit'] {
+    cursor: pointer;
+}

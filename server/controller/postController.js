@@ -16,32 +16,45 @@ const postAll = (req, res) => {
 }
 
 const postParam =  (req, res) => {
-    const param = req.params.param;
-    const [key, value] = param.split(':');
-    let find;
+  const param = req.params.param;
+  let [key, value] = param.split(':');
+  let findOne = false;
+  let find;
   
-    if (key === 'id') {
-      find = { userID: value }
-    } else if (key === 'board') {
-      find = { board: value }
-    } else if (key === 'uid') {
-      find = { _id: value }
-    } else if (key === 'countReply') {
-      find = { _id: value }
-    } else {
-      res.sendStatus(400);
-      return;
-    }
+  if (key === 'id') {
+    find = { userID: value }
+  } else if (key === 'board') {
+    find = { board: value }
+  } else if (key === 'uid' || key === 'countReply') {
+    find = { _id: value }
+  } else if (key === 'postID') {
+    value = value.replace('|', ':');
+    find = { postID: value }
+    findOne = true;
+  } else {
+    res.sendStatus(400);
+    return;
+  }
   
-    if (key === 'countReply') {
-      Reply.countDocuments({ postId: value })
-        .then((number) => {
-          res.json({ number })
-        })
-        .catch((err) => {
-          console.error(err);
-          res.sendStatus(500)
-        })
+  if (key === 'countReply') {
+    Reply.countDocuments({ postId: value })
+      .then((number) => {
+        res.json({ number })
+      })
+      .catch((err) => {
+        console.error(err);
+        res.sendStatus(500)
+      })
+  } else {
+    if (findOne) {
+      Post.findOne(find)
+      .then((post) => {
+        res.send(post);
+      })
+      .catch((err) => {
+        const error = { message: "An internal serval error occurred" };
+        res.status(500).json(error);
+      });
     } else {
       Post.find(find)
         .sort({ createdAt: -1 })
@@ -53,6 +66,7 @@ const postParam =  (req, res) => {
           res.status(500).json(error);
         });
     }
+  }
 }
 
 const submit = async (req, res) => {

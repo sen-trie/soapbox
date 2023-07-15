@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import boards from 'boards.js';
+import boards from '../shared/boards.js';
 
 const Create = () => {
   const [user, setUser] = useState(null);
@@ -62,13 +62,13 @@ const Create = () => {
       CREATE A NEW POST
       <form onSubmit={sumbitForm}>
         <label htmlFor="title">Title* </label>
-        <input name="title" onChange={(e) => {setPost({...post, title: e.target.value})}} value={post.title}/>
+        <input type='text' name="title" onChange={(e) => {setPost({...post, title: e.target.value})}} value={post.title}/>
         <br/>
         <label htmlFor="body">Content </label>
-        <input name="body" onChange={(e) => {setPost({...post, body: e.target.value})}} value={post.body}/>
+        <input type='text' name="body" onChange={(e) => {setPost({...post, body: e.target.value})}} value={post.body}/>
         <br/>
         <label htmlFor="media">Media Link (img/mp4) </label>
-        <input name="media" onChange={(e) => {setPost({...post, media: e.target.value})}} value={post.media}/>
+        <input type='text' name="media" onChange={(e) => {setPost({...post, media: e.target.value})}} value={post.media}/>
         <br/>
         <p>Posting on {post.board ? post.board : '_____'}</p>
         {Object.keys(boards).map((board, index) => (

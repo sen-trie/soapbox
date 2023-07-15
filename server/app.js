@@ -78,12 +78,12 @@ app.put('/api/posts/:param', async (req, res) => {
 
   const action = req.body.action;
 
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   if (action === 'upvote' || action === 'downvote') {
     const postUpdate = action === 'upvote' ? { $inc: { likes: 1 } } : { $inc: { likes: -1 } };
     const userUpdate = action === 'upvote' ? { $push: { liked: postId } } : { $pull: { liked: postId } };
-
-    const session = await mongoose.startSession();
-    session.startTransaction();
 
     try {
       const updatedPost = await Post.findOneAndUpdate({ _id: postId }, postUpdate, { new: true }).session(session);
@@ -116,15 +116,12 @@ app.put('/api/posts/:param', async (req, res) => {
     }
   } else if (action === 'comment') {
     const board = req.body.board;
-    const { postId, text, user, replies, media } = req.body.data;
+    const { postId, postUid, text, user, replies, media } = req.body.data;
 
     let replyArray = text.match(/->[A-Z]+:\d+\b/g);
     if (replyArray) {
       replyArray = replyArray.map((str) => str.replace(/->/g, ''));
     }
-
-    const session = await mongoose.startSession();
-    session.startTransaction();
 
     try {
       const updatedCounter = await Counter.findByIdAndUpdate( '64ab99fd99eb639ccf2abbf5', { $inc: { [board]: 1 } });
@@ -139,23 +136,27 @@ app.put('/api/posts/:param', async (req, res) => {
         }
 
         const newReply = new Reply({
-          postId, text, user, replies, media,
+          postId, postUid, text, user, replies, media,
           replyId: replyId
         });
 
-        newReply.save()
-        .then((savedPost) => {
-          console.log("Post saved:", savedPost);
-          res.sendStatus(200);
-        })
-        .catch((error) => {
-          console.error("Error saving post:", error);
-          res.sendStatus(500);
-        });
+        await newReply.save();
+        await Post.findByIdAndUpdate(postId, { $push: { replies: replyId } }, { new: true });
 
-        
+        await session.commitTransaction();
+        session.endSession();
+
+        console.log("Post saved:");
+        res.sendStatus(200).json({ message: 'OK' });
+      } else {
+        await session.abortTransaction();
+        session.endSession();
+        console.error('Error replying', err);
+        return res.status(500).json({ error: 'Error replying' });
       }
     } catch (err) {
+      await session.abortTransaction();
+      session.endSession();
       console.error('Error replying', err);
       return res.status(500).json({ error: 'Error replying' });
     }

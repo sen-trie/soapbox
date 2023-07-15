@@ -6,6 +6,10 @@ const replySchema = new Schema({
     type: String,
     required: true,
   },
+  postUid : {
+    type: String,
+    required: true,
+  },
   replyId:{
     type: String,
     required: true,

@@ -1,41 +1,53 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import Item from "./Item";
-import boards from 'boards.js';
+import boards from '../shared/boards.js';
 
 const Home = (props) => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
+  // const [subDirectory, setSubDirectory] = useState('');
 
   const nav = useNavigate();
-
   const location = useLocation();
+
   const pathParts = location.pathname.split('/').filter(part => part !== '');
-  let subDirectory = pathParts.length > 1 ? pathParts.pop() : null;
+  let subDirectory = (pathParts.length > 1 ? pathParts.pop() : null);
 
   useEffect(() => {
-    fetch(`/api/items${subDirectory ? `/board:${subDirectory}` : ''}`)
-      .then(res => res.json())
-      .then(data => {
-        setItems(data);
+    Promise.all([
+      fetch(`/api/items${subDirectory ? `/board:${subDirectory}` : ''}`),
+      fetch('/profile')
+    ])
+      .then(([itemsResponse, profileResponse]) => {
+        if (!itemsResponse.ok) {
+          throw new Error('Error fetching items data');
+        }
+        if (!profileResponse.ok) {
+          throw new Error('Error fetching profile data');
+        }
+    
+        return Promise.all([itemsResponse.json(), profileResponse.json()]);
+      })
+      .then(([itemsData, profileData]) => {
+        setItems(itemsData);
         setLoading(false);
-      })
-      .catch((err) => {
-        nav('/404', { replace: true })
-      })
-
-    fetch('/profile')
-      .then((response) => response.json())
-      .then((data) => {
-        if (typeof(data) === 'object') {
-          setUser(data.existingUser);
+    
+        if (typeof profileData === 'object') {
+          setUser(profileData.existingUser);
         }
       })
       .catch((error) => {
-        console.error('Error fetching user data:', error);
+        console.error('Error:', error);
+        nav('/404', { replace: true });
       });
-  }, [subDirectory]);
+  },[location])
+
+  // useEffect(() => {
+  //   const pathParts = location.pathname.split('/').filter(part => part !== '');
+  //   setSubDirectory(pathParts.length > 1 ? pathParts.pop() : null);
+  // }, [location]);
 
   const handleLogout = () => {
     fetch('/logout')
@@ -67,9 +79,9 @@ const Home = (props) => {
       <br/>
       <br/>
       <div>
-        <Link to={`/`} onClick={() => {setLoading(false)}}>HOME </Link>
+        <Link to={`/`} onClick={() => {setItems([]); setLoading(true)}}>HOME </Link>
         {Object.keys(boards).map((key) => (
-          <Link key={key} to={`/box/${key}`} onClick={() => {setLoading(false)}}>
+          <Link key={key} to={`/box/${key}`} onClick={() => {setItems([]); setLoading(true)}}>
             | {`${key.toUpperCase()} `}
           </Link>
         ))}
@@ -78,10 +90,10 @@ const Home = (props) => {
         <p>loading...</p>}
       { items.length !== 0 && user !== null &&
         <Item
-          items={items} user={user} key={items}
+          items={items} user={user}
         />}
       {
-        items.length === 0 && user !== null &&
+        items.length === 0 && user !== null && loading === false &&
         <p>There's nothing posted yet...</p>
       }
     </div>

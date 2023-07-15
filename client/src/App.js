@@ -4,7 +4,9 @@ import Create from "./components/Create";
 import User from "./components/User";
 import ChooseName from "./components/ChooseName";
 import NotFound from "./components/NotFound";
-import Post from "./components/Post"
+import Post from "./components/Post";
+
+import './App.css'
 
 function App() {
   return (

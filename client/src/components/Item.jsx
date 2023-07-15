@@ -4,13 +4,11 @@ import timePassed from "../functions/time";
 
 const Item = (props) => {
   const [process, setProcess] = useState(false);
-  const [loadingReply, setLoadingReply] = useState(false);
-  const [items, setItems] = useState(props.items);
 
   // ONLY TAKES ARRAYS AS PROPS
   useEffect(() => {
-    fetchReplyCounts(items);
-  },[])
+    // fetchReplyCounts(props.items);
+  },[props])
 
   const likePost = (post) => {
     if (process) {return}
@@ -50,33 +48,6 @@ const Item = (props) => {
         console.error('Error upvoting post:', error);
       });
   }
-
-  const fetchReplyCounts = async (items) => {
-    if (items.length === 0) {
-      setLoadingReply(true);
-      return;
-    }
-
-    const fetchPromises = items.map(async (item) => {
-      const postId = item._id;
-        return fetch(`/api/items/countReply:${postId}`)
-          .then((response) => response.json())
-          .then((data) => {
-            item.replies = data.number;
-          })
-          .catch((error) => {
-            console.error(`Error getting number of replies for post ${postId}`);
-          });
-    });
-  
-    Promise.all(fetchPromises)
-      .then(() => {
-        setLoadingReply(true);
-      })
-      .catch((error) => {
-        console.error('Error fetching reply counts:', error);
-      });
-  };
 
   const deletePost = (post) => {
     fetch(`/api/items/${post._id}`, {
@@ -125,7 +96,7 @@ const Item = (props) => {
                 {post.board ? `, on ${post.board}` : ', '}
                 {` ${timePassed(Date.parse(post.createdAt))}`}
               <br/>
-                {` ${post.replies} ${post.replies === 1 ? 'reply' : 'replies'}`}
+                {` ${post.replies.length} ${post.replies.length === 1 ? 'reply' : 'replies'}`}
             </p>
             {/* props.user &&  */}
             {checkIfCreator(post) && <button style={{ marginLeft: '1em' }} onClick={() => deletePost(post)}>X</button>}
@@ -151,14 +122,9 @@ const Item = (props) => {
     return (props.user.liked.includes(postId))
   }
 
-  // if (Object.keys(items).length === 0) {
-  //   return (
-  //     <p>Nothing is posted yet...</p>
-  //   )
-
   return (
     <div>
-      {loadingReply === true && renderItems(items)}
+      {renderItems(props.items)}
     </div>
   )
 }
