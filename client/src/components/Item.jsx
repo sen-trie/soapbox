@@ -15,7 +15,7 @@ const Item = (props) => {
     setProcess(true)
 
     const postId = post._id;
-    fetch(`/api/posts/${postId}:${props.user.id}`, {
+    fetch(`/api/posts/${postId}:${props.user._id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json'
@@ -24,29 +24,33 @@ const Item = (props) => {
     })
       .then((response) => response.json())
       .then((data) => {
-        if (didUserLike(postId)) {
-          props.user.liked.splice(props.user.liked.indexOf(postId), 1);
-          for (let obj in props.items) {
-            if (props.items[obj]._id === postId) {
-              props.items[obj].likes--;
-              break;
+        if (data.message && data.message === 'OK') {
+          if (didUserLike(postId)) {
+            props.user.liked.splice(props.user.liked.indexOf(postId), 1);
+            for (let obj in props.items) {
+              if (props.items[obj]._id === postId) {
+                props.items[obj].likes--;
+                break;
+              }
             }
-          }
-        } else {
-          props.user.liked.push(postId);
-          for (let obj in props.items) {
-            if (props.items[obj]._id === postId) {
-              props.items[obj].likes++;
-              break;
+          } else {
+            props.user.liked.push(postId);
+            for (let obj in props.items) {
+              if (props.items[obj]._id === postId) {
+                props.items[obj].likes++;
+                break;
+              }
             }
           }
         }
-        setProcess(false);
       })
       .catch((error) => {
-        setProcess(false);
+        // TODO: ERROR POP UP HERE
         console.error('Error upvoting post:', error);
-      });
+      })
+      .finally(() => {
+        setProcess(false);
+      })
   }
 
   const deletePost = (post) => {

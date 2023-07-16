@@ -80,7 +80,7 @@ const submit = async (req, res) => {
         const newPost = new Post({ title, body, userID, postID, userName, displayName, board, replies, media });
         newPost.save()
           .then((savedPost) => {
-            console.log("Post saved:", savedPost);
+            console.log("Post created");
             res.sendStatus(200);
           })
           .catch((error) => {

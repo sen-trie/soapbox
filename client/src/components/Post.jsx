@@ -44,7 +44,7 @@ const Post = () => {
         setUser(userResponse.existingUser);
       } catch (error) {
         console.error(error);
-        //nav('/404', { replace: true });
+        nav('/404', { replace: true });
       }
     };
   
@@ -63,7 +63,7 @@ const Post = () => {
       user: user ? user : 'Anonymous',
     }
 
-    fetch(`/api/posts/${postId}:${user ? user.id : 'ANON'}`, {
+    fetch(`/api/posts/${postId}:${user ? user._id : 'Anonymous'}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json'
@@ -72,9 +72,10 @@ const Post = () => {
     })
       .then((response) => response.json())
       .then((data) => {
+        console.log(data.replyId);
       })
       .catch((error) => {
-        console.error('Error upvoting post:', error);
+        console.error('Error creating comment:', error);
       });
   }
 

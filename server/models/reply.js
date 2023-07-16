@@ -23,7 +23,8 @@ const replySchema = new Schema({
   },
   user: {
     type: Object,
-    default: {}
+    default: {},
+    required: true,
   },
   replies: {
     type: Array,

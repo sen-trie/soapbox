@@ -7,7 +7,10 @@ const Comment = (props) => {
   const replyToComment = (reply) => {
     return (
       Object.keys(reply).map((key) => {
-        return <Link key={key} to={`/post/${props.postLink}#${reply[key]}`} style={{ color:'green' }}>{`-${reply[key]} `}</Link>
+        return ( props.place === 'userpage' 
+          ? <span key={nanoid()} style={{ color:'green' }}>{`-${reply[key]}`}</span>
+          : <Link key={nanoid()} style={{ color:'green' }} to={`/post/${props.postLink}#${reply[key]}`}>{`-${reply[key]}`}</Link>
+        )
       })
     )
   }
@@ -15,62 +18,34 @@ const Comment = (props) => {
   const checkIfCreator = (post) => {
     if (props.place === 'userpage') {
       if (props.user && post.reply.user._id) {
-        return ((post.reply.user._id === props.user._id) || props.user.admin)
+        return ((post.reply.user._id === props.user._id) || props.user.admin);
       }
     } else {
-      if (post.user && props.user) {
-        return ((post.user._id === props.user._id) || props.user.admin)
+      if (post.deleted) {
+        return false;
+      } else if (post.user && props.user) {
+        return ((post.user._id === props.user._id) || props.user.admin);
       }
     }
   }
 
   const deleteReply = (reply) => {
-    if (props.place === 'userpage') {
-      let unReplace = reply.reply.text.match(/->[A-Z]+:\d+/g)
-      
-    } else {
-      fetch(`/api/delReply/${reply._id}`, {
-        method: "PUT",
-        headers: {
-          'Content-type': 'application/json'
-        },
-        body: JSON.stringify(reply)})
-        .then(response => {
-          if (response.ok) {
-            console.log('Delete request successful');
-          } else {
-            console.error('Delete request failed');
-          }
-        })
-        .catch(error => {
-          console.error('Network error:', error);
-        });
-
-      
-      //   .then((response) => response.json())
-      //   .then((data) => {
-      //     console.log(data)
-      //   })
-      //   .catch((error) => {
-      //     console.error('Error deleting reply:', error);
-      //   });
-
-      // const repliesPromise = fetch(`/api/delReply/${}`);
-      // console.log(reply.text)
-      // // MOVET TO SERVER SIDE
-
-      // const regex = /(->[A-Z]+:\d+)/g
-      // const matches = reply.text.match(regex);
-      // let replacedText = reply.text.split(regex).map(part => {
-      //   if (matches && matches.includes(part)) {
-      //     return part;
-      //   } else {
-      //     return '';
-      //   }
-      // }).join('');
-
-      // console.log(replacedText)
-    }
+    fetch(`/api/delReply/${props.place === 'userpage' ? reply.reply._id : reply._id }`, {
+      method: "PUT",
+      headers: {
+        'Content-type': 'application/json'
+      },
+      body: JSON.stringify(props.place === 'userpage' ? reply.reply : reply)})
+      .then(response => {
+        if (response.ok) {
+          console.log('Delete request successful');
+        } else {
+          console.error('Delete request failed');
+        }
+      })
+      .catch(error => {
+        console.error('Network error:', error);
+      });
   }
 
 
@@ -91,7 +66,6 @@ const Comment = (props) => {
   };
 
   const checkCommentor = (post) => {
-    console.log(post)
     if (post.deleted === true) {
       return "DELETED "
     } else {
@@ -121,6 +95,7 @@ const Comment = (props) => {
           {key.media && key.media !== 'DELETED' && <img style={{ width: 'auto', height: '5rem', aspectRatio:1, objectFit:'cover' }} src={key.media} alt="comment"></img>}
           <div>
             {replaceText(key.text)}
+            {key.deleted && <span style={{ color:'red' }}>[DELETED]</span>}
           </div>
           {checkIfCreator(key) && <button style={{ marginLeft: '1em' }} onClick={()=>{deleteReply(key)}}>X</button>}
         </div>
@@ -142,10 +117,9 @@ const Comment = (props) => {
         {key.reply.user === "Anonymous" ? 'Anonymous ': `@${key.reply.user.displayName} `}
         {timePassed(Date.parse(key.reply.createdAt))}
         {key.reply.replyId ? ` [${key.reply.replyId}]` : ''}
-        {key.reply.replies.length === 0 && <br/>}
-
+        {key.reply.replies.length !== 0 && <br/>}
+        {replyToComment(key.reply.replies)}
         <div style={{ display:'flex', margin: '0.5em' }}>
-          {replyToComment(key.reply.replies)}
           <p style={{ margin: 0 }}>{key.reply.text}</p>
           {checkIfCreator(key) && <button style={{ marginLeft: '1em' }} onClick={()=>{deleteReply(key)}}>X</button>}
         </div>

@@ -53,7 +53,6 @@ const findReply =  (req, res) => {
 const deleteReply = (req, res) => {
   const reply = req.body;
 
-
   if (req.isAuthenticated()) {
     if (reply.user === 'Anonymous') {
       if (!req.user.admin) {
@@ -67,9 +66,6 @@ const deleteReply = (req, res) => {
 
     Reply.findByIdAndUpdate(reply._id, {}, { new: true })
       .then(reply =>{
-        // const modifiedText = yourFunction(reply.text);
-        console.log(reply.text)
-
         const regex = /(->[A-Z]+:\d+)/g
         const matches = reply.text.match(regex);
         let replacedText = reply.text.split(regex).map(part => {
@@ -87,7 +83,7 @@ const deleteReply = (req, res) => {
 
         reply.save()
           .then((updatedReply) => {
-            console.log('Reply updated:', updatedReply);
+            console.log('Reply updated');
           })
           .catch((err) => {
             console.error('Error saving updated reply:', err);
@@ -101,7 +97,6 @@ const deleteReply = (req, res) => {
     res.status(401).send('Unauthorized');
   }
 }
-
 
 module.exports = {
   findReply, deleteReply

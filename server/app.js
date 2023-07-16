@@ -91,30 +91,62 @@ app.put('/api/posts/:param', async (req, res) => {
 
   let shouldAbort = false;
   if (action === 'upvote' || action === 'downvote') {
+    if (req.isAuthenticated()) {
+      if (userId !== req.user._id) {
+        console.error('User ID Mismatch');
+        res.status(403).json({ error: 'User ID Mismatch' });
+        shouldAbort = true;
+      }
+    } else {
+      console.error('Unauthorized');
+      res.status(401).json({ error: 'Unauthorized request' });
+      shouldAbort = true;
+    }
+
     const postUpdate = action === 'upvote' ? { $inc: { likes: 1 } } : { $inc: { likes: -1 } };
     const userUpdate = action === 'upvote' ? { $push: { liked: postId } } : { $pull: { liked: postId } };
 
-    try {
-      const updatedPost = await Post.findOneAndUpdate({ _id: postId }, postUpdate, { new: true }).session(session);
-      if (!updatedPost) {
-        console.log('Post not found');
+    if (!shouldAbort) {
+      try {
+        const updatedPost = await Post.findOneAndUpdate({ _id: postId }, postUpdate, { new: true }).session(session);
+        if (!updatedPost) {
+          console.log('Post not found');
+          res.status(404).json({ error: 'Post not found' });
+          shouldAbort = true;
+        }
+
+        const userUpdateResult = await User.updateOne({ _id: userId }, userUpdate).session(session);
+        if (userUpdateResult.modifiedCount === 0) {
+          console.log('User not found');
+          res.status(404).json({ error: 'User not found' });
+          shouldAbort = true;
+        }
+
+        if (userUpdateResult.modifiedCount > 0 && updatedPost) {
+          console.log('Upvote/Downvote successful');
+          res.status(200).json({ message: 'OK' });
+        }
+      } catch (error) {
+        console.error('Error updating post and user:', error);
+        res.status(500).json({ error: 'Error upvoting/downvoting' });
         shouldAbort = true;
       }
-
-      const userUpdateResult = await User.updateOne({ id: userId }, userUpdate).session(session);
-      if (userUpdateResult.modifiedCount === 0) {
-        console.log('User not found');
-        shouldAbort = true;
-      }
-
-      if (userUpdateResult.modifiedCount > 0 && updatedPost) {
-        console.log('Upvote/Downvote successful');
-      }
-    } catch (error) {
-      console.error('Error updating post and user:', error);
-      shouldAbort = true;
     }
   } else if (action === 'comment') {
+    if (req.isAuthenticated()) {
+      if (userId !== req.user._id) {
+        console.error('User ID Mismatch');
+        res.status(403).json({ error: 'User ID Mismatch' });
+        shouldAbort = true;
+      }
+    } else {
+      if (userId !== 'Anonymous') {
+        console.error('Unauthorized request');
+        res.status(401).json({ error: 'Unauthorized request' });
+        shouldAbort = true;
+      }
+    }
+
     const board = req.body.board;
     const { postId, postUid, text, user, replies, media } = req.body.data;
 
@@ -123,44 +155,47 @@ app.put('/api/posts/:param', async (req, res) => {
       replyArray = replyArray.map((str) => str.replace(/->/g, ''));
     }
 
-    try {
-      const updatedCounter = await Counter.findByIdAndUpdate( '64ab99fd99eb639ccf2abbf5', { $inc: { [board]: 1 } }).session(session);
+    if (!shouldAbort) {
+      try {
+        const updatedCounter = await Counter.findByIdAndUpdate( '64ab99fd99eb639ccf2abbf5', { $inc: { [board]: 1 } }).session(session);
 
-      if (updatedCounter) {
-        const replyId = `${boards[board]}:${updatedCounter.toObject()[board]}`;
+        if (updatedCounter) {
+          const replyId = `${boards[board]}:${updatedCounter.toObject()[board]}`;
 
-        if (replyArray) {
-          replyArray.forEach(async (value) => {
-            await Reply.updateOne({ replyId: value }, { $push: { replies: replyId } }).session(session);
+          if (replyArray) {
+            replyArray.forEach(async (value) => {
+              await Reply.updateOne({ replyId: value }, { $push: { replies: replyId } }).session(session);
+            });
+          }
+
+          const newReply = new Reply({
+            postId, postUid, text, replies, media,
+            replyId: replyId,
+            user: userId === 'Anonymous' ? 'Anonymous' : { _id: user._id, username: user.username, displayName: user.displayName}
           });
+
+          await newReply.save();
+          await Post.findByIdAndUpdate(postId, { $push: { replies: replyId } }, { new: true }).session(session);
+
+          console.log("Comment saved");
+          res.status(200).json({ message: 'OK', replyId: replyId });
+        } else {
+          shouldAbort = true;
+          console.error('Error replying', err);
+          res.status(500).json({ error: 'Error replying' });
         }
-
-        const newReply = new Reply({
-          postId, postUid, text, replies, media,
-          replyId: replyId,
-          user: { _id: user._id, username: user.username, displayName: user.displayName}
-        });
-
-        await newReply.save();
-        await Post.findByIdAndUpdate(postId, { $push: { replies: replyId } }, { new: true }).session(session);
-
-        console.log("Post saved:");
-      } else {
+      } catch (err) {
         shouldAbort = true;
         console.error('Error replying', err);
+        res.status(500).json({ error: 'Error replying' });
       }
-    } catch (err) {
-      shouldAbort = true;
-      console.error('Error replying', err);
     }
   }
 
   if (shouldAbort) {
     await session.abortTransaction();
-    res.status(500).json({ error: 'Error replying' });
   } else {
     await session.commitTransaction();
-    res.status(200).json({ message: 'OK' });
   }
 });
 
